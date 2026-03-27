@@ -73,7 +73,10 @@ if command -v claude &>/dev/null; then
   ok "Claude Code 已安装 ($(claude --version 2>/dev/null || echo 'installed'))，跳过"
 else
   info "安装 @anthropic-ai/claude-code ..."
-  npm install -g @anthropic-ai/claude-code --silent
+  if ! npm install -g @anthropic-ai/claude-code 2>&1; then
+    warn "普通权限安装失败，尝试 sudo ..."
+    sudo npm install -g @anthropic-ai/claude-code
+  fi
   ok "Claude Code 安装完成"
 fi
 
@@ -88,7 +91,10 @@ if command -v ccr &>/dev/null; then
   info "如需更新：npm install -g @wangjibins/claude-code-router"
 else
   info "安装 @wangjibins/claude-code-router ..."
-  npm install -g @wangjibins/claude-code-router --silent
+  if ! npm install -g @wangjibins/claude-code-router 2>&1; then
+    warn "普通权限安装失败，尝试 sudo ..."
+    sudo npm install -g @wangjibins/claude-code-router
+  fi
   ok "Claude Code Router 安装完成 → $(which ccr)"
 fi
 
@@ -209,9 +215,14 @@ if [[ "$SKIP_CONFIG" != "true" ]]; then
     PROVIDER_NAME="${PROVIDER_NAME:-wanqing}"
     ok "Provider: $PROVIDER_NAME"
 
-    # ── API Base URL & transformer 固定，无需用户配置 ──────────────────────
-    CUSTOM_URL="$API_BASE_URL"
-    info "API Endpoint: $CUSTOM_URL"
+    # ── API Base URL ─────────────────────────────────────────────────────────
+    echo
+    echo -e "  ${DIM}API Endpoint（留空使用默认值）：${R}"
+    echo -e "  ${DIM}默认: $API_BASE_URL${R}"
+    ask "API Base URL (直接回车使用默认)："
+    read -r CUSTOM_URL < /dev/tty
+    CUSTOM_URL="${CUSTOM_URL:-$API_BASE_URL}"
+    ok "API Endpoint: $CUSTOM_URL"
     info "Transformer:  openai（自动转换请求格式）"
 
     # ── API Key ──────────────────────────────────────────────────────────────
@@ -272,7 +283,7 @@ if [[ "$SKIP_CONFIG" != "true" ]]; then
 
     # 追加本 provider JSON 片段
     [[ "$ALL_PROVIDERS_JSON" != "[" ]] && ALL_PROVIDERS_JSON+=","
-    ALL_PROVIDERS_JSON+="{\"name\":\"$PROVIDER_NAME\",\"api_base_url\":\"$API_BASE_URL\",\"api_key\":\"$API_KEY\",\"models\":$MODELS_JSON,\"alias\":$ALIAS_JSON,\"transformer\":{\"use\":[\"openai\"]}}"
+    ALL_PROVIDERS_JSON+="{\"name\":\"$PROVIDER_NAME\",\"api_base_url\":\"$CUSTOM_URL\",\"api_key\":\"$API_KEY\",\"models\":$MODELS_JSON,\"alias\":$ALIAS_JSON,\"transformer\":{\"use\":[\"openai\"]}}"
 
     # 展示本 provider 已配置模型
     echo
