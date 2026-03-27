@@ -88,6 +88,7 @@ export class ProviderService {
           baseUrl: providerConfig.api_base_url,
           apiKey: providerConfig.api_key,
           models: providerConfig.models || [],
+          alias: providerConfig.alias,
           transformer: providerConfig.transformer ? transformer : undefined,
         });
 
@@ -262,20 +263,37 @@ export class ProviderService {
     }> = [];
 
     this.providers.forEach((provider) => {
+      // 优先添加别名条目（如果存在）
+      if (provider.alias && Array.isArray(provider.alias)) {
+        provider.alias.forEach((aliasEntry: any) => {
+          // 添加 alias 格式：provider,alias
+          models.push({
+            id: `${provider.name},${aliasEntry.alias}`,
+            object: "model",
+            owned_by: provider.name,
+            provider: provider.name,
+          });
+        });
+      }
+      // 添加没有别名的原始 model ID 条目
       provider.models.forEach((model) => {
-        models.push({
-          id: model,
-          object: "model",
-          owned_by: provider.name,
-          provider: provider.name,
-        });
-
-        models.push({
-          id: `${provider.name},${model}`,
-          object: "model",
-          owned_by: provider.name,
-          provider: provider.name,
-        });
+        const hasAlias = (provider.alias || []).some(
+          (a: any) => a.modelId === model
+        );
+        if (!hasAlias) {
+          models.push({
+            id: model,
+            object: "model",
+            owned_by: provider.name,
+            provider: provider.name,
+          });
+          models.push({
+            id: `${provider.name},${model}`,
+            object: "model",
+            owned_by: provider.name,
+            provider: provider.name,
+          });
+        }
       });
     });
 

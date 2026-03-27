@@ -554,6 +554,11 @@ export const registerApiRoutes = async (
     }
   );
 
+  // GET /v1/models - 返回 config.json 中配置的模型列表（含别名），供 Claude Code /model 命令使用
+  fastify.get("/v1/models", async () => {
+    return fastify.providerService.getAvailableModels();
+  });
+
   fastify.get("/providers", async () => {
     return fastify.providerService.getProviders();
   });

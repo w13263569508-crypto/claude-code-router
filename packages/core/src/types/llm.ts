@@ -197,11 +197,17 @@ export interface ConversionOptions {
   sourceProvider: "openai" | "anthropic";
 }
 
+export interface AliasEntry {
+  modelId: string;
+  alias: string;
+}
+
 export interface LLMProvider {
   name: string;
   baseUrl: string;
   apiKey: string;
   models: string[];
+  alias?: AliasEntry[];
   transformer?: {
     [key: string]: {
       use?: Transformer[];
@@ -230,6 +236,7 @@ export interface ConfigProvider {
   api_base_url: string;
   api_key: string;
   models: string[];
+  alias?: AliasEntry[];
   transformer: {
     use?: string[] | Array<any>[];
   } & {

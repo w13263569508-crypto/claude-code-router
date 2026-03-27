@@ -1,5 +1,5 @@
 {
-  "name": "@musistudio/claude-code-router",
+  "name": "@wangjibins/claude-code-router",
   "version": "2.0.0",
   "description": "Use Claude Code without an Anthropics account and route it to another LLM provider",
   "scripts": {
@@ -30,8 +30,16 @@
     "llm",
     "anthropic"
   ],
-  "author": "musistudio",
+  "author": "wangjibin",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/w13263569508-crypto/claude-code-router.git"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "devDependencies": {
     "@types/node": "^24.0.15",
     "esbuild": "^0.25.1",
