@@ -76,22 +76,49 @@ Examples:
   ccr ui
 `;
 
+async function checkPortReachable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const http = require("http");
+    const req = http.get(`http://127.0.0.1:${port}/health`, (res: any) => {
+      resolve(true);
+      res.destroy();
+    });
+    req.on("error", () => resolve(false));
+    req.setTimeout(500, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
 async function waitForService(
-  timeout = 10000,
-  initialDelay = 1000
+  timeout = 15000,
+  initialDelay = 500
 ): Promise<boolean> {
-  // Wait for an initial period to let the service initialize
+  // Short initial delay to let the process spawn
   await new Promise((resolve) => setTimeout(resolve, initialDelay));
 
   const startTime = Date.now();
+  // Read port from config (default 3456)
+  let port = 3456;
+  try {
+    const { readConfigFile } = require("./utils");
+    const config = await readConfigFile();
+    port = config.PORT || 3456;
+  } catch {}
+
   while (Date.now() - startTime < timeout) {
-    const isRunning = isServiceRunning()
-    if (isRunning) {
-      // Wait for an additional short period to ensure service is fully ready
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    // First check PID file (fast path)
+    if (isServiceRunning()) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
       return true;
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Fallback: check if port is actually responding
+    // (handles race condition where PID file isn't written yet)
+    if (await checkPortReachable(port)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
   return false;
 }
@@ -277,7 +304,10 @@ async function main() {
       await activateCommand();
       break;
     case "code":
-      if (!isRunning) {
+      // Re-check service status here, in case ccr restart just completed
+      // and the PID file wasn't written yet when main() first checked
+      const isCodeRunning = isServiceRunning();
+      if (!isCodeRunning) {
         console.log("Service not running, starting service...");
         const cliPath = join(__dirname, "cli.js");
         const startProcess = spawn("node", [cliPath, "start"], {
