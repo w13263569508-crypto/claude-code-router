@@ -35,9 +35,9 @@ interface MessageCreateParamsBase {
 const enc = get_encoding("cl100k_base");
 
 export const calculateTokenCount = (
-  messages: MessageParam[],
-  system: any,
-  tools: Tool[]
+    messages: MessageParam[],
+    system: any,
+    tools: Tool[]
 ) => {
   let tokenCount = 0;
   if (Array.isArray(messages)) {
@@ -52,9 +52,9 @@ export const calculateTokenCount = (
             tokenCount += enc.encode(JSON.stringify(contentPart.input)).length;
           } else if (contentPart.type === "tool_result") {
             tokenCount += enc.encode(
-              typeof contentPart.content === "string"
-                ? contentPart.content
-                : JSON.stringify(contentPart.content)
+                typeof contentPart.content === "string"
+                    ? contentPart.content
+                    : JSON.stringify(contentPart.content)
             ).length;
           }
         });
@@ -89,8 +89,8 @@ export const calculateTokenCount = (
 };
 
 const getProjectSpecificRouter = async (
-  req: any,
-  configService: ConfigService
+    req: any,
+    configService: ConfigService
 ) => {
   // Check if there is project-specific configuration
   if (req.sessionId) {
@@ -98,9 +98,9 @@ const getProjectSpecificRouter = async (
     if (project) {
       const projectConfigPath = join(HOME_DIR, project, "config.json");
       const sessionConfigPath = join(
-        HOME_DIR,
-        project,
-        `${req.sessionId}.json`
+          HOME_DIR,
+          project,
+          `${req.sessionId}.json`
       );
 
       // First try to read sessionConfig file
@@ -122,25 +122,35 @@ const getProjectSpecificRouter = async (
 };
 
 const getUseModel = async (
-  req: any,
-  tokenCount: number,
-  configService: ConfigService,
-  lastUsage?: Usage | undefined
+    req: any,
+    tokenCount: number,
+    configService: ConfigService,
+    lastUsage?: Usage | undefined
 ): Promise<{ model: string; scenarioType: RouterScenarioType }> => {
   const projectSpecificRouter = await getProjectSpecificRouter(req, configService);
   const providers = configService.get<any[]>("providers") || [];
   const Router = projectSpecificRouter || configService.get("Router");
 
   if (req.body.model.includes(",")) {
-    const [provider, model] = req.body.model.split(",");
+    const [provider, modelOrAlias] = req.body.model.split(",");
     const finalProvider = providers.find(
-      (p: any) => p.name.toLowerCase() === provider
+        (p: any) => p.name.toLowerCase() === provider.toLowerCase()
     );
-    const finalModel = finalProvider?.models?.find(
-      (m: any) => m.toLowerCase() === model
-    );
-    if (finalProvider && finalModel) {
-      return { model: `${finalProvider.name},${finalModel}`, scenarioType: 'default' };
+    if (finalProvider) {
+      // Check alias first
+      const aliasEntry = (finalProvider.alias || []).find(
+          (a: any) => a.alias?.toLowerCase() === modelOrAlias.toLowerCase()
+      );
+      if (aliasEntry) {
+        return { model: `${finalProvider.name},${aliasEntry.modelId}`, scenarioType: 'default' };
+      }
+      // Fall back to exact model name match
+      const finalModel = finalProvider.models?.find(
+          (m: any) => m.toLowerCase() === modelOrAlias.toLowerCase()
+      );
+      if (finalModel) {
+        return { model: `${finalProvider.name},${finalModel}`, scenarioType: 'default' };
+      }
     }
     return { model: req.body.model, scenarioType: 'default' };
   }
@@ -148,27 +158,27 @@ const getUseModel = async (
   // if tokenCount is greater than the configured threshold, use the long context model
   const longContextThreshold = Router?.longContextThreshold || 60000;
   const lastUsageThreshold =
-    lastUsage &&
-    lastUsage.input_tokens > longContextThreshold &&
-    tokenCount > 20000;
+      lastUsage &&
+      lastUsage.input_tokens > longContextThreshold &&
+      tokenCount > 20000;
   const tokenCountThreshold = tokenCount > longContextThreshold;
   if ((lastUsageThreshold || tokenCountThreshold) && Router?.longContext) {
     req.log.info(
-      `Using long context model due to token count: ${tokenCount}, threshold: ${longContextThreshold}`
+        `Using long context model due to token count: ${tokenCount}, threshold: ${longContextThreshold}`
     );
     return { model: Router.longContext, scenarioType: 'longContext' };
   }
   if (
-    req.body?.system?.length > 1 &&
-    req.body?.system[1]?.text?.startsWith("<CCR-SUBAGENT-MODEL>")
+      req.body?.system?.length > 1 &&
+      req.body?.system[1]?.text?.startsWith("<CCR-SUBAGENT-MODEL>")
   ) {
     const model = req.body?.system[1].text.match(
-      /<CCR-SUBAGENT-MODEL>(.*?)<\/CCR-SUBAGENT-MODEL>/s
+        /<CCR-SUBAGENT-MODEL>(.*?)<\/CCR-SUBAGENT-MODEL>/s
     );
     if (model) {
       req.body.system[1].text = req.body.system[1].text.replace(
-        `<CCR-SUBAGENT-MODEL>${model[1]}</CCR-SUBAGENT-MODEL>`,
-        ""
+          `<CCR-SUBAGENT-MODEL>${model[1]}</CCR-SUBAGENT-MODEL>`,
+          ""
       );
       return { model: model[1], scenarioType: 'default' };
     }
@@ -176,18 +186,18 @@ const getUseModel = async (
   // Use the background model for any Claude Haiku variant
   const globalRouter = configService.get("Router");
   if (
-    req.body.model?.includes("claude") &&
-    req.body.model?.includes("haiku") &&
-    globalRouter?.background
+      req.body.model?.includes("claude") &&
+      req.body.model?.includes("haiku") &&
+      globalRouter?.background
   ) {
     req.log.info(`Using background model for ${req.body.model}`);
     return { model: globalRouter.background, scenarioType: 'background' };
   }
   // The priority of websearch must be higher than thinking.
   if (
-    Array.isArray(req.body.tools) &&
-    req.body.tools.some((tool: any) => tool.type?.startsWith("web_search")) &&
-    Router?.webSearch
+      Array.isArray(req.body.tools) &&
+      req.body.tools.some((tool: any) => tool.type?.startsWith("web_search")) &&
+      Router?.webSearch
   ) {
     return { model: Router.webSearch, scenarioType: 'webSearch' };
   }
@@ -228,9 +238,9 @@ export const router = async (req: any, _res: any, context: RouterContext) => {
   const { messages, system = [], tools }: MessageCreateParamsBase = req.body;
   const rewritePrompt = configService.get("REWRITE_SYSTEM_PROMPT");
   if (
-    rewritePrompt &&
-    system.length > 1 &&
-    system[1]?.text?.includes("<env>")
+      rewritePrompt &&
+      system.length > 1 &&
+      system[1]?.text?.includes("<env>")
   ) {
     const prompt = await readFile(rewritePrompt, "utf-8");
     system[1].text = `${prompt}<env>${system[1].text.split("<env>").pop()}`;
@@ -240,8 +250,8 @@ export const router = async (req: any, _res: any, context: RouterContext) => {
     // Try to get tokenizer config for the current model
     const [providerName, modelName] = req.body.model.split(",");
     const tokenizerConfig = context.tokenizerService?.getTokenizerConfigForModel(
-      providerName,
-      modelName
+        providerName,
+        modelName
     );
 
     // Use TokenizerService if available, otherwise fall back to legacy method
@@ -249,20 +259,20 @@ export const router = async (req: any, _res: any, context: RouterContext) => {
 
     if (context.tokenizerService) {
       const result = await context.tokenizerService.countTokens(
-        {
-          messages: messages as MessageParam[],
-          system,
-          tools: tools as Tool[],
-        },
-        tokenizerConfig
+          {
+            messages: messages as MessageParam[],
+            system,
+            tools: tools as Tool[],
+          },
+          tokenizerConfig
       );
       tokenCount = result.tokenCount;
     } else {
       // Legacy fallback
       tokenCount = calculateTokenCount(
-        messages as MessageParam[],
-        system,
-        tools as Tool[]
+          messages as MessageParam[],
+          system,
+          tools as Tool[]
       );
     }
 
@@ -305,7 +315,7 @@ const sessionProjectCache = new LRUCache<string, string>({
 });
 
 export const searchProjectBySession = async (
-  sessionId: string
+    sessionId: string
 ): Promise<string | null> => {
   // Check cache first
   if (sessionProjectCache.has(sessionId)) {
@@ -330,9 +340,9 @@ export const searchProjectBySession = async (
     // Concurrently check each project folder for sessionId.jsonl file
     const checkPromises = folderNames.map(async (folderName) => {
       const sessionFilePath = join(
-        CLAUDE_PROJECTS_DIR,
-        folderName,
-        `${sessionId}.jsonl`
+          CLAUDE_PROJECTS_DIR,
+          folderName,
+          `${sessionId}.jsonl`
       );
       try {
         const fileStat = await stat(sessionFilePath);
