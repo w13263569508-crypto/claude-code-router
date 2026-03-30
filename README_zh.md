@@ -27,6 +27,30 @@
 -   **GitHub Actions 集成**: 在您的 GitHub 工作流程中触发 Claude Code 任务。
 -   **插件系统**: 使用自定义转换器扩展功能。
 
+## 🍴 Fork 说明 — 与原项目的区别
+
+本项目 Fork 自 [musistudio/claude-code-router](https://github.com/musistudio/claude-code-router)，由 [@wangjibin](https://github.com/w13263569508-crypto) 维护。在原项目基础上新增了以下功能：
+
+| 功能 | 原项目 | 本 Fork |
+|---|---|---|
+| 模型别名 | ❌ | ✅ 将长 endpoint ID 映射为友好名称（如 `ep-h67tra-...` → `sonnet4.6`）|
+| 一键安装脚本 | ❌ | ✅ `install.sh` — 一条命令完成全部安装配置 |
+| Claude Code for VS Code 插件 | ❌ | ✅ 自动配置 VS Code / Cursor / CodeFlicker 扩展 |
+| `/ccr-model` Skill | ❌ | ✅ 内置 Claude Code Skill，快速查看和切换模型 |
+
+### 模型别名
+
+长串的 endpoint ID 难以记忆。通过别名支持，可以在 `config.json` 中定义友好名称：
+
+```json
+"alias": [
+  { "modelId": "ep-dknqnj-1774531541496556905", "alias": "opus4.6" },
+  { "modelId": "ep-h67tra-1774531588912708240", "alias": "sonnet4.6" }
+]
+```
+
+之后直接用 `/model claude,sonnet4.6` 即可切换，无需记忆完整的 endpoint ID。
+
 ## 🚀 快速入门
 
 ### ⚡ 一键安装（推荐）
@@ -63,6 +87,9 @@ ccr restart   # 启动服务
 ccr status    # 确认服务状态
 ccr code      # 开启 Claude Code
 ```
+
+> 💡 **完成！** 执行 `ccr code` 后，Claude Code 已完整接入 CCR 路由。
+> 在 Claude Code 内切换模型：输入 `/ccr-model` 或直接用 `/model claude,sonnet4.6`。
 
 ---
 

@@ -29,6 +29,30 @@
 - **GitHub Actions Integration**: Trigger Claude Code tasks in your GitHub workflows.
 - **Plugin System**: Extend functionality with custom transformers.
 
+## 🍴 Fork Highlights — What's Different
+
+This is a fork of [musistudio/claude-code-router](https://github.com/musistudio/claude-code-router), maintained by [@wangjibin](https://github.com/w13263569508-crypto). The following enhancements have been added on top of the original:
+
+| Feature | Original | This Fork |
+|---|---|---|
+| Model Alias | ❌ | ✅ Map long endpoint IDs to friendly names (e.g. `ep-h67tra-...` → `sonnet4.6`) |
+| One-click Install Script | ❌ | ✅ `install.sh` — interactive setup in one command |
+| Claude Code for VS Code | ❌ | ✅ Auto-configure the VS Code / Cursor / CodeFlicker extension |
+| `/ccr-model` Skill | ❌ | ✅ Built-in Claude Code skill for model listing & switching |
+
+### Model Alias
+
+Long endpoint IDs are hard to remember. With alias support, you can define friendly names in `config.json`:
+
+```json
+"alias": [
+  { "modelId": "ep-dknqnj-1774531541496556905", "alias": "opus4.6" },
+  { "modelId": "ep-h67tra-1774531588912708240", "alias": "sonnet4.6" }
+]
+```
+
+Then switch models with simply `/model claude,sonnet4.6` — no need to type the full endpoint ID.
+
 ## 🚀 Getting Started
 
 ### ⚡ Quick Install (Recommended)
@@ -65,6 +89,9 @@ ccr restart   # Start the service
 ccr status    # Check service status
 ccr code      # Launch Claude Code
 ```
+
+> 💡 **That's it!** Once `ccr code` is running, Claude Code is fully connected to CCR.
+> To switch models inside Claude Code, type `/ccr-model` or use `/model claude,sonnet4.6`.
 
 ---
 

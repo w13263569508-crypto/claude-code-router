@@ -75,7 +75,7 @@ publish_core_npm() {
 publish_npm() {
   echo ""
   echo "========================================="
-  echo "发布 npm 包 @CCR/cli"
+  echo "发布 npm 包 @wangjibins/claude-code-router"
   echo "========================================="
 
   # 检查是否已登录 npm
@@ -93,7 +93,7 @@ publish_npm() {
   # 创建临时的发布用 package.json
   node -e "
     const pkg = require('../packages/cli/package.json');
-    pkg.name = '@CCR/cli';
+    pkg.name = '@wangjibins/claude-code-router';
     delete pkg.scripts;
     pkg.files = ['dist/*', 'README.md', 'LICENSE'];
     pkg.dependencies = {};
@@ -124,11 +124,13 @@ publish_npm() {
   npm publish --access public
 
   # 恢复原始 package.json
-  mv "$BACKUP_DIR/package.json.original" "$CLI_DIR/package.json"
+  if [[ -f "$BACKUP_DIR/package.json.original" ]]; then
+    mv "$BACKUP_DIR/package.json.original" "$CLI_DIR/package.json"
+  fi
 
   echo ""
   echo "✅ npm 包发布成功!"
-  echo "   包名: @CCR/cli@${VERSION}"
+  echo "   包名: @wangjibins/claude-code-router@${VERSION}"
 }
 
 # ===========================
@@ -171,7 +173,8 @@ publish_docker() {
 # 执行发布
 # ===========================
 if [ "$PUBLISH_TYPE" = "npm" ] || [ "$PUBLISH_TYPE" = "all" ]; then
-  publish_core_npm
+  # 只发布 CLI 包（@wangjibins/claude-code-router）
+  # Core 包 @musistudio/llms 属于上游，Fork 无需重复发布
   publish_npm
 fi
 

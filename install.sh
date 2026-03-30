@@ -70,14 +70,19 @@ step "2/5  安装 Claude Code"
 progress 2 5 "安装 Claude Code..."; echo
 
 if command -v claude &>/dev/null; then
-  ok "Claude Code 已安装 ($(claude --version 2>/dev/null || echo 'installed'))，跳过"
+  ok "Claude Code 已安装，跳过"
 else
   info "安装 @anthropic-ai/claude-code ..."
-  if ! npm install -g @anthropic-ai/claude-code 2>&1; then
+  if ! npm install -g @anthropic-ai/claude-code --silent 2>&1 | grep -E "(error|ERR)"; then
+    ok "Claude Code 安装完成"
+  else
     warn "普通权限安装失败，尝试 sudo ..."
-    sudo npm install -g @anthropic-ai/claude-code
+    if sudo npm install -g @anthropic-ai/claude-code --silent 2>&1; then
+      ok "Claude Code 安装完成（sudo）"
+    else
+      die "Claude Code 安装失败，请手动执行：sudo npm install -g @anthropic-ai/claude-code"
+    fi
   fi
-  ok "Claude Code 安装完成"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -87,15 +92,19 @@ step "3/5  安装 Claude Code Router"
 progress 3 5 "安装 CCR..."; echo
 
 if command -v ccr &>/dev/null; then
-  ok "CCR 已安装 ($(ccr --version 2>/dev/null || echo 'installed'))，跳过"
-  info "如需更新：npm install -g @wangjibins/claude-code-router"
+  ok "CCR 已安装，跳过"
 else
   info "安装 @wangjibins/claude-code-router ..."
-  if ! npm install -g @wangjibins/claude-code-router 2>&1; then
+  if npm install -g @wangjibins/claude-code-router --silent 2>&1 | grep -qvE "(error|ERR|npm warn)"; then
+    ok "Claude Code Router 安装完成 → $(which ccr)"
+  else
     warn "普通权限安装失败，尝试 sudo ..."
-    sudo npm install -g @wangjibins/claude-code-router
+    if sudo npm install -g @wangjibins/claude-code-router --silent 2>&1; then
+      ok "Claude Code Router 安装完成（sudo）→ $(which ccr)"
+    else
+      die "CCR 安装失败，请手动执行：sudo npm install -g @wangjibins/claude-code-router"
+    fi
   fi
-  ok "Claude Code Router 安装完成 → $(which ccr)"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -434,6 +443,91 @@ SETTINGSEOF
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 可选步骤：配置 Claude Code for VS Code 插件
+# ══════════════════════════════════════════════════════════════════════════════
+echo
+sep
+echo -e "  ${BCYAN}可选：配置 Claude Code for VS Code 插件${R}"
+sep
+echo
+echo -e "  ${DIM}此步骤将自动为检测到的编辑器（VS Code / Cursor / CodeFlicker）：${R}"
+echo -e "  ${DIM}  · 安装 Claude Code for VS Code 插件${R}"
+echo -e "  ${DIM}  · 写入 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY 到插件环境变量${R}"
+echo -e "  ${DIM}  · 开启 disableLoginPrompt（跳过登录提示）${R}"
+echo
+ask "是否配置 Claude Code for VS Code 插件模式？(y/N)："
+read -r SETUP_VSCODE < /dev/tty
+
+if [[ "$SETUP_VSCODE" =~ ^[Yy]$ ]]; then
+
+  # ── 从 CCR config 读取 PORT 和第一个 Provider 的 API Key ──────────────────
+  _CCR_PORT=$(python3 -c "
+import json, os
+try:
+    c = json.load(open(os.path.expanduser('~/.claude-code-router/config.json')))
+    print(c.get('PORT', 3456))
+except:
+    print(3456)
+")
+  _CCR_API_KEY=$(python3 -c "
+import json, os
+try:
+    c = json.load(open(os.path.expanduser('~/.claude-code-router/config.json')))
+    providers = c.get('Providers', [])
+    print(providers[0]['api_key'] if providers else '')
+except:
+    print('')
+")
+
+  # ── 检测各编辑器的 settings.json 并写入配置 ─────────────────────────────
+  declare -a _EDITOR_SETTINGS=(
+    "VS Code:$HOME/Library/Application Support/Code/User/settings.json"
+    "Cursor:$HOME/Library/Application Support/Cursor/User/settings.json"
+    "CodeFlicker:$HOME/Library/Application Support/CodeFlicker/User/settings.json"
+  )
+
+  for _ENTRY in "${_EDITOR_SETTINGS[@]}"; do
+    _EDITOR_NAME="${_ENTRY%%:*}"
+    _SETTINGS_PATH="${_ENTRY#*:}"
+
+    # 只要 settings.json 存在就写入（无需 CLI）
+    if [[ -f "$_SETTINGS_PATH" ]]; then
+        _PORT="$_CCR_PORT" _KEY="$_CCR_API_KEY" _SP="$_SETTINGS_PATH" \
+        python3 << 'VSCODEEOF'
+import json, os
+
+port          = os.environ['_PORT']
+api_key       = os.environ['_KEY']
+settings_path = os.environ['_SP']
+
+try:
+    with open(settings_path, 'r') as f:
+        settings = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    settings = {}
+
+settings['claudeCode.disableLoginPrompt'] = True
+
+env_vars = settings.get('claudeCode.environmentVariables', [])
+env_vars = [e for e in env_vars if e.get('name') not in ('ANTHROPIC_BASE_URL', 'ANTHROPIC_API_KEY')]
+env_vars.insert(0, {'name': 'ANTHROPIC_BASE_URL', 'value': f'http://127.0.0.1:{port}'})
+if api_key:
+    env_vars.insert(1, {'name': 'ANTHROPIC_API_KEY', 'value': api_key})
+settings['claudeCode.environmentVariables'] = env_vars
+
+with open(settings_path, 'w') as f:
+    json.dump(settings, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+VSCODEEOF
+      ok "$_EDITOR_NAME settings.json 已配置：ANTHROPIC_BASE_URL=http://127.0.0.1:$_CCR_PORT"
+    fi
+  done
+
+else
+  info "跳过 VS Code 插件配置"
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
 # 创建 /ccr-model skill
 # ══════════════════════════════════════════════════════════════════════════════
 SKILL_DIR="$HOME/.claude/skills/ccr-model"
@@ -500,25 +594,38 @@ SKILLEOF
 ok "/ccr-model skill 已创建：$SKILL_DIR/SKILL.md"
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 步骤 5/5：启动服务
+# ══════════════════════════════════════════════════════════════════════════════
+step "5/5  启动服务"
+progress 5 5 "启动中..."; echo
+
+info "正在重启 CCR 服务..."
+ccr restart
+info "等待服务就绪..."
+sleep 3
+ccr status
+
+# ══════════════════════════════════════════════════════════════════════════════
 # 完成
 # ══════════════════════════════════════════════════════════════════════════════
 echo
-echo -e "${BGREEN}══════════════════════════════════════════════════════${R}"
-echo -e "${BGREEN}  🎉  安装完成！请按以下步骤启动服务：${R}"
-echo -e "${BGREEN}══════════════════════════════════════════════════════${R}"
+echo -e "${BGREEN}╔══════════════════════════════════════════════════════╗${R}"
+echo -e "${BGREEN}║   🎉  安装完成！CCR 服务已启动                       ║${R}"
+echo -e "${BGREEN}╚══════════════════════════════════════════════════════╝${R}"
 echo
-echo -e "  ${BOLD}Step 1${R}  启动 / 重启服务"
-echo -e "  ${CYAN}  ccr restart${R}"
-echo
-echo -e "  ${BOLD}Step 2${R}  确认服务状态"
-echo -e "  ${CYAN}  ccr status${R}"
-echo
-echo -e "  ${BOLD}Step 3${R}  开启 Claude Code"
-echo -e "  ${CYAN}  ccr code${R}"
-echo
-sep
-echo -e "  ${DIM}其他常用命令：${R}"
+echo -e "  ${CYAN}ccr code${R}       启动 Claude Code（终端模式）"
 echo -e "  ${CYAN}ccr ui${R}         打开 Web UI 配置界面"
 echo -e "  ${CYAN}ccr model${R}      终端交互式切换模型"
+echo -e "  ${CYAN}ccr status${R}     查看服务状态"
+echo -e "  ${CYAN}ccr restart${R}    重启服务"
 echo -e "  ${DIM}配置文件：$CONFIG_FILE${R}"
 echo
+sep
+echo -e "${DIM}"
+cat << 'CREDIT'
+   Made with ♥ by wangjibin
+   欢迎共建 · Welcome to contribute
+
+   https://github.com/w13263569508-crypto/claude-code-router
+CREDIT
+echo -e "${R}"
