@@ -121,15 +121,15 @@ progress 3 5 "安装 CCR..."; echo
 if command -v ccr &>/dev/null; then
   ok "CCR 已安装，跳过"
 else
-  info "安装 @wangjibins/claude-code-router@2.1.0 ..."
+  info "安装 @wangjibins/claude-code-router ..."
   if npm install -g @wangjibins/claude-code-router --silent 2>&1 | grep -qvE "(error|ERR|npm warn)"; then
     ok "Claude Code Router 安装完成 → $(which ccr)"
   else
     warn "普通权限安装失败，尝试 sudo ..."
-    if sudo npm install -g @wangjibins/claude-code-router@2.1.0 --silent 2>&1; then
+    if sudo npm install -g @wangjibins/claude-code-router --silent 2>&1; then
       ok "Claude Code Router 安装完成（sudo）→ $(which ccr)"
     else
-      die "CCR 安装失败，请手动执行：sudo npm install -g @wangjibins/claude-code-router@2.1.0"
+      die "CCR 安装失败，请手动执行：sudo npm install -g @wangjibins/claude-code-router"
     fi
   fi
 fi
