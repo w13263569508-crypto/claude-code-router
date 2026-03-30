@@ -1,6 +1,6 @@
 {
   "name": "@wangjibins/claude-code-router",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "CLI for Claude Code Router",
   "bin": {
     "ccr": "dist/cli.js"
@@ -13,28 +13,13 @@
   ],
   "author": "musistudio",
   "license": "MIT",
-  "devDependencies": {
-    "@CCR/server": "workspace:*",
-    "@CCR/shared": "workspace:*",
-    "@inquirer/prompts": "^5.0.0",
-    "@types/archiver": "^7.0.0",
-    "@types/node": "^24.0.15",
-    "adm-zip": "^0.5.16",
-    "archiver": "^7.0.1",
-    "esbuild": "^0.25.1",
-    "find-process": "^2.0.0",
-    "minimist": "^1.2.8",
-    "openurl": "^1.1.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.2"
-  },
   "files": [
     "dist/*",
     "README.md",
     "LICENSE"
   ],
   "dependencies": {
-    "@musistudio/llms": "workspace:*"
+    "@musistudio/llms": "1.0.53"
   },
   "peerDependencies": {
     "node": ">=18.0.0"

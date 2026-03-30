@@ -63,6 +63,33 @@ NODE_MAJOR=$(node --version | sed 's/v//' | cut -d. -f1)
 [[ "$NODE_MAJOR" -ge 20 ]] || die "需要 Node.js >= 20，当前 $(node --version)，请升级"
 ok "Node.js $(node --version)  /  npm $(npm --version)"
 
+# 端口占用检查
+CCR_PORT=13456
+if lsof -iTCP:${CCR_PORT} -sTCP:LISTEN &>/dev/null; then
+  echo
+  warn "检测到端口 ${CCR_PORT} 已被占用："
+  lsof -iTCP:${CCR_PORT} -sTCP:LISTEN | awk 'NR>1 {printf "    PID: %-8s 进程: %s\n", $2, $1}'
+  echo
+  ask "是否自动结束占用端口的进程并继续安装？(y/N)："
+  read -r KILL_PORT_PROC < /dev/tty
+  if [[ "$KILL_PORT_PROC" =~ ^[Yy]$ ]]; then
+    PORT_PIDS=$(lsof -iTCP:${CCR_PORT} -sTCP:LISTEN | awk 'NR>1 {print $2}' | sort -u)
+    for _PID in $PORT_PIDS; do
+      kill "$_PID" 2>/dev/null && ok "已结束进程 PID: $_PID" || warn "结束进程 $_PID 失败，尝试 sudo..."
+      kill "$_PID" 2>/dev/null || sudo kill "$_PID" 2>/dev/null || true
+    done
+    sleep 1
+    if lsof -iTCP:${CCR_PORT} -sTCP:LISTEN &>/dev/null; then
+      die "端口 ${CCR_PORT} 仍被占用，请手动处理后重新运行安装脚本"
+    fi
+    ok "端口 ${CCR_PORT} 已释放，继续安装..."
+  else
+    die "安装已取消。请手动释放端口 ${CCR_PORT} 后重新运行安装脚本\n  提示：执行 lsof -iTCP:${CCR_PORT} -sTCP:LISTEN 查看占用进程"
+  fi
+else
+  ok "端口 ${CCR_PORT} 未被占用"
+fi
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 步骤 2/5：安装 Claude Code
 # ══════════════════════════════════════════════════════════════════════════════
@@ -94,15 +121,15 @@ progress 3 5 "安装 CCR..."; echo
 if command -v ccr &>/dev/null; then
   ok "CCR 已安装，跳过"
 else
-  info "安装 @wangjibins/claude-code-router ..."
+  info "安装 @wangjibins/claude-code-router@2.1.0 ..."
   if npm install -g @wangjibins/claude-code-router --silent 2>&1 | grep -qvE "(error|ERR|npm warn)"; then
     ok "Claude Code Router 安装完成 → $(which ccr)"
   else
     warn "普通权限安装失败，尝试 sudo ..."
-    if sudo npm install -g @wangjibins/claude-code-router --silent 2>&1; then
+    if sudo npm install -g @wangjibins/claude-code-router@2.1.0 --silent 2>&1; then
       ok "Claude Code Router 安装完成（sudo）→ $(which ccr)"
     else
-      die "CCR 安装失败，请手动执行：sudo npm install -g @wangjibins/claude-code-router"
+      die "CCR 安装失败，请手动执行：sudo npm install -g @wangjibins/claude-code-router@2.1.0"
     fi
   fi
 fi
@@ -625,7 +652,4 @@ echo -e "${DIM}"
 cat << 'CREDIT'
    Made with ♥ by wangjibin
    欢迎共建 · Welcome to contribute
-
-   https://github.com/w13263569508-crypto/claude-code-router
-CREDIT
 echo -e "${R}"

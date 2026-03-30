@@ -90,17 +90,21 @@ publish_npm() {
   mkdir -p "$BACKUP_DIR"
   cp "$CLI_DIR/package.json" "$BACKUP_DIR/package.json.bak"
 
-  # 创建临时的发布用 package.json
-  node -e "
+  # 查询 @musistudio/llms 的真实 npm 版本（避免 workspace:* 问题）
+  LLMS_VERSION=$(npm view @musistudio/llms version 2>/dev/null || echo "1.0.53")
+  echo "  @musistudio/llms 版本: ${LLMS_VERSION}"
+
+  # 创建临时的发布用 package.json（清除所有 workspace:* 依赖）
+  LLMS_VER="$LLMS_VERSION" node -e "
     const pkg = require('../packages/cli/package.json');
     pkg.name = '@wangjibins/claude-code-router';
     delete pkg.scripts;
+    delete pkg.devDependencies;
     pkg.files = ['dist/*', 'README.md', 'LICENSE'];
-    pkg.dependencies = {};
-    // 移除 workspace 依赖
-    delete pkg.dependencies['@CCR/shared'];
-    delete pkg.dependencies['@CCR/server'];
-    pkg.dependencies['@musistudio/llms'] = require('../packages/server/package.json').dependencies['@musistudio/llms'];
+    // 运行时只需要 @musistudio/llms，使用真实 npm 版本号
+    pkg.dependencies = {
+      '@musistudio/llms': process.env.LLMS_VER
+    };
     pkg.peerDependencies = {
       'node': '>=18.0.0'
     };
